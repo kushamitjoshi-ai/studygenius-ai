@@ -20,28 +20,11 @@ try:
 except Exception as e:
     st.error("API Client initialization failed. Please check your API Key configuration.")
 
-# Custom CSS for Premium Theme
-st.markdown("""
-    <style>
-    .main { background-color: #f8fafc; }
-    h1 { color: #4f46e5; font-family: 'Arial'; font-weight: 700; }
-    h2, h3 { color: #0d9488; }
-    .stButton>button {
-        background-color: #4f46e5;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 10px 24px;
-    }
-    .stButton>button:hover { background-color: #4338ca; color: white; }
-    </style>
-""", unsafe_html=True)
-
 # Sidebar UI (User Profile & Configuration)
 with st.sidebar:
-    st.markdown("<h2 style='color:white; text-align:center;'>🎓 StudyGenius AI</h2>", unsafe_html=True)
+    st.title("🎓 StudyGenius AI")
     st.markdown("---")
-    st.markdown("### 👤 Student Profile")
+    st.subheader("👤 Student Profile")
     
     student_name = st.text_input("Name", value="Kushgra Joshi")
     grade = st.selectbox("Class/Grade", ["Class 11", "Class 12", "Class 10", "College", "Competitive Exams"])
@@ -49,11 +32,11 @@ with st.sidebar:
     study_hours = st.slider("Daily Study Commitment (Hours)", 1, 8, 4)
     
     st.markdown("---")
-    st.markdown("<p style='text-align:center; color:#94a3b8;'>Powered by Gemini 2.5 Flash</p>", unsafe_html=True)
+    st.caption("Powered by Gemini 2.5 Flash")
 
 # Main Application Layout
-st.title("StudyGenius AI Dashboard")
-st.markdown(f"##### Welcome back, **{student_name}**! Let's make learning smarter today. 🚀")
+st.title("📚 StudyGenius AI Dashboard")
+st.write(f"##### Welcome back, **{student_name}**! Let's make learning smarter today. 🚀")
 
 # 3-Column Quick Metrics
 col1, col2, col3 = st.columns(3)
@@ -119,13 +102,13 @@ with tab2:
 
 # TAB 3: Score Tracker
 with tab3:
-    st.subheader("📊 Performance Metrices & Predicted Marks")
+    st.subheader("📊 Performance Metrics & Predicted Marks")
     st.write("Real-time data insights mapping student test scores and accuracy curves.")
     
     # Mock data layout representing backend storage data metrics
     st.progress(0.73, text="Current Baseline Accuracy Index: 73%")
     st.markdown("""
-    * **Strong Modules:** Coordinate Geometry, Stoichiometry, Mechanics, General Vocabulary.
+    * **Strong Modules:** Coordinate Geometry, Topics in Mechanics, General Vocabulary.
     * **Needs Improvement Loop:** Calculus, Multi-step Thermodynamic problems, Organic Conversions.
     * **Predicted Next Assessment Score:** **73 / 80** (Maintain active consistency to bump this scale up).
     """)
