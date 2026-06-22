@@ -12,20 +12,14 @@ st.set_page_config(
 )
 
 # Set your Gemini API Key here
-# Yeh part try block ke upar rakho
-if "GEMINI_API_KEY" in st.secrets:
-    os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
-    # Check karein ki key load hui ya nahi
-    if os.environ.get("GEMINI_API_KEY"):
-        st.sidebar.success("API Key loaded!")
-else:
-    st.error("Secrets not found!")
-
-# Ab client bina argument ke initialize karo (yeh automatically os.environ se key utha lega)
+# Yeh code line 16 se 27 ki jagah paste karo
 try:
-    client = genai.Client() 
+    # Direct Secrets se key uthao aur client initialize karo
+    my_key = st.secrets["GEMINI_API_KEY"]
+    client = genai.Client(api_key=my_key)
+    st.sidebar.success("Connection Successful!")
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Connection Failed: {e}")
 
 # Initialize Google GenAI Client
 try:
