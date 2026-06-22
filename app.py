@@ -12,8 +12,7 @@ st.set_page_config(
 )
 
 # Set your Gemini API Key here
-# Replace "YOUR_GEMINI_API_KEY" with your actual key from Google AI Studio
-os.environ["GEMINI_API_KEY"] = "AIzaSyCQVWPb5HTh0ZwXbgH1gxfR1v7GP6slF2Y"
+os.environ["GEMINI_API_KEY"] = "AIzaSyCQVwPb5HTh0ZwXbgH1gxfR1v7GP6s1F2Y"
 
 # Initialize Google GenAI Client
 try:
@@ -25,7 +24,6 @@ except Exception as e:
 st.markdown("""
     <style>
     .main { background-color: #f8fafc; }
-    .sidebar .sidebar-content { background-color: #0f172a; color: white; }
     h1 { color: #4f46e5; font-family: 'Arial'; font-weight: 700; }
     h2, h3 { color: #0d9488; }
     .stButton>button {
@@ -64,7 +62,7 @@ with col1:
 with col2:
     st.metric(label="Syllabus Tracked 📚", value="14%", delta="2% this week")
 with col3:
-    st.metric(label="Target Focus 🎯", value=stream)
+    st.metric(label="Target Status 🎯", value="Active Mode")
 
 st.markdown("---")
 
@@ -102,7 +100,7 @@ with tab1:
                     st.write(response.text)
                     st.success("Doubt solved successfully! Read through the breakdown carefully.")
                 except Exception as e:
-                    st.error("Could not reach Gemini API server. Make sure you entered a valid API key at line 15.")
+                    st.error("Could not reach Gemini API server. Make sure your key is active.")
         else:
             st.warning("Please type a question or enter academic text to initiate the solver loop.")
 
@@ -113,9 +111,9 @@ with tab2:
     
     # Simple Mock dynamic Schedule Output based on Input Hours
     st.markdown(f"""
-    *   **06:00 AM - 07:30 AM:** High Cognitive Tasks — Hard Concepts Review (Physics/Math derivations or Chemistry structures)
-    *   **04:00 PM - 05:30 PM:** Active Recall Problem Solving & Assignment Sheet Backlogs
-    *   **08:30 PM - 09:30 PM:** Revision Blocks & Mock Test Analytics Tracking with StudyGenius Portal
+    * **06:00 AM - 07:30 AM:** High Cognitive Tasks — Hard Concepts Review (Physics/Math derivations or Chemistry structures)
+    * **04:00 PM - 05:30 PM:** Active Recall Problem Solving & Assignment Sheet Backlogs
+    * **08:30 PM - 09:30 PM:** Revision Blocks & Mock Test Analytics Tracking with StudyGenius Portal
     """)
     st.info("Tip: Stick to the regular timetable routines to keep your 5-day daily streak active!")
 
@@ -127,7 +125,7 @@ with tab3:
     # Mock data layout representing backend storage data metrics
     st.progress(0.73, text="Current Baseline Accuracy Index: 73%")
     st.markdown("""
-    *   **Strong Modules:** Coordinate Geometry, Stoichiometry, Mechanics, General Vocabulary.
-    *   **Needs Improvement Loop:** Calculus, Multi-step Thermodynamic problems, Organic Conversions.
-    *   **Predicted Next Assessment Score:** **73 / 80** (Maintain active consistency to bump this scale up).
+    * **Strong Modules:** Coordinate Geometry, Stoichiometry, Mechanics, General Vocabulary.
+    * **Needs Improvement Loop:** Calculus, Multi-step Thermodynamic problems, Organic Conversions.
+    * **Predicted Next Assessment Score:** **73 / 80** (Maintain active consistency to bump this scale up).
     """)
