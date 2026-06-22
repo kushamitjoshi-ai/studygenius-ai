@@ -12,11 +12,20 @@ st.set_page_config(
 )
 
 # Set your Gemini API Key here
-# Code ka ye hissa GitHub par hona chahiye
+# Yeh part try block ke upar rakho
 if "GEMINI_API_KEY" in st.secrets:
     os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+    # Check karein ki key load hui ya nahi
+    if os.environ.get("GEMINI_API_KEY"):
+        st.sidebar.success("API Key loaded!")
 else:
-    st.error("API Key missing in Streamlit Secrets setup.")
+    st.error("Secrets not found!")
+
+# Ab client bina argument ke initialize karo (yeh automatically os.environ se key utha lega)
+try:
+    client = genai.Client() 
+except Exception as e:
+    st.error(f"Error: {e}")
 
 # Initialize Google GenAI Client
 try:
