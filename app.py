@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from PIL import Image
-import streamlit.components.v1 as components  # JavaScript trigger handles ke liye
+import streamlit.components.v1 as components  # 🌟 UI shortcut setup ke liye
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
@@ -16,6 +16,7 @@ else:
 # =========================================================================
 # 🌟 GLOBAL INSTANT PASTE CAPTURE (Global Event Listener Code)
 # =========================================================================
+# Yeh injection screen par direct Ctrl+V capability inject kar dega
 components.html(
     """
     <script>
