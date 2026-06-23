@@ -1,130 +1,115 @@
 import streamlit as st
-import os
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+import time
 from PIL import Image
-# Page Configurations
-st.set_page_config(
-    page_title="StudyGenius AI",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded"
+
+# 1. PAGE CONFIGURATION
+st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
+
+# API Key Config from Streamlit Secrets
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+else:
+    st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
+
+# 2. DYNAMIC USER PROFILE SIDEBAR (Multi-device and multi-user support)
+st.sidebar.title("👤 User Profile")
+user_name = st.sidebar.text_input("Enter Your Name:", value="Guest Student")
+educational_domain = st.sidebar.selectbox(
+    "Select Educational Focus:",
+    ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
 )
 
-# Set your Gemini API Key here
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        my_key = st.secrets["GEMINI_API_KEY"]
-        client = genai.Client(api_key=my_key)
-        st.sidebar.success("✅ Connected to Gemini API!")
-    else:
-        st.sidebar.error("❌ Key missing in Streamlit Secrets!")
-except Exception as e:
-    st.sidebar.error(f"❌ Connection Error: {e}")
+# 3. MULTIMODAL FEATURE (Image/Diagram Upload or Paste Support)
+st.sidebar.markdown("---")
+st.sidebar.subheader("📸 Visual Query Support")
+uploaded_image = st.sidebar.file_uploader("Upload or Paste image/diagram", type=["png", "jpg", "jpeg"])
 
-# Initialize Google GenAI Client
-try:
-    client = genai.Client()
-except Exception as e:
-    st.error("API Client initialization failed. Please check your API Key configuration.")
+if uploaded_image:
+    st.sidebar.image(uploaded_image, caption="Uploaded Preview", use_container_width=True)
 
-# Sidebar UI (User Profile & Configuration)
-with st.sidebar:
-    st.title("🎓 StudyGenius AI")
-    st.markdown("---")
-    st.subheader("👤 Student Profile")
+# Clear History Button
+st.sidebar.markdown("---")
+if st.sidebar.button("🗑️ Clear Chat History"):
+    st.session_state.chat_history = []
+    st.rerun()
+
+# 4. INITIALIZE CHAT HISTORY (With type-checking to prevent crashes)
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Main App Header (Dynamically personalized)
+st.title("🚀 StudyGenius AI")
+st.caption(f"Logged in as: **{user_name}** | Focus: **{educational_domain}**")
+
+# 5. DISPLAY PAST CONVERSATION (Handles text and images safely)
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        if message["type"] == "text":
+            st.markdown(message["content"])
+        elif message["type"] == "image":
+            st.image(message["content"], caption="Analyzed Visual Context")
+
+# =========================================================================
+# 6. INTERACTIVE STREAMING MODE (A TO Z FEATURE EXECUTION)
+# =========================================================================
+if user_prompt := st.chat_input("Ask StudyGenius anything..."):
     
-    student_name = st.text_input("Name", value="Kushgra Joshi")
-    grade = st.selectbox("Class/Grade", ["Class 11", "Class 12", "Class 10", "College", "Competitive Exams"])
-    stream = st.selectbox("Stream/Target", ["PCM (Science)", "PCB (Science)", "Commerce", "Arts", "JEE/NEET Aspirant"])
-    study_hours = st.slider("Daily Study Commitment (Hours)", 1, 8, 4)
+    # Payload pipeline create karna jo multimodal content pass kar sake
+    current_payload = []
     
-    st.markdown("---")
-    st.caption("Powered by Gemini 2.5 Flash")
+    # A. Agar user ne image upload ki hai, toh use handle aur display karo
+    if uploaded_image:
+        img = Image.open(uploaded_image)
+        current_payload.append(img)
+        
+        with st.chat_message("user"):
+            st.image(img, caption="Sent Image Analysis Request")
+        st.session_state.chat_history.append({"role": "user", "type": "image", "content": img})
 
-# Main Application Layout
-st.title("📚 StudyGenius AI Dashboard")
-st.write(f"##### Welcome back, **{student_name}**! Let's make learning smarter today. 🚀")
-
-# 3-Column Quick Metrics
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric(label="Daily Streak 🔥", value="5 Days", delta="New Milestone!")
-with col2:
-    st.metric(label="Syllabus Tracked 📚", value="14%", delta="2% this week")
-with col3:
-    st.metric(label="Target Status 🎯", value="Active Mode")
-
-st.markdown("---")
-
-# Feature Tabs
-tab1, tab2, tab3 = st.tabs(["💬 Instant AI Doubt Solver", "📅 Dynamic Study Planner", "📈 Analytics & Score Predictor"])
-
-# TAB 1: AI Doubt Solver
-with tab1:
-    st.subheader("💡 Ask Your Complex Doubts")
-    st.write("Type your question, upload an assignment picture, or talk to the AI tutor for step-by-step concepts.")
+    # B. User ka text message display aur save karo
+    with st.chat_message("user"):
+        st.markdown(user_prompt)
+    st.session_state.chat_history.append({"role": "user", "type": "text", "content": user_prompt})
     
-    # Text input query
-    user_query = st.text_input("What concept or question are you struggling with today?", 
-                              placeholder="e.g., Explain standard deviation or solve: Find the zeroes of the polynomial x^2 - 5x + 6")
-    
-    # Image input query placeholder
-    uploaded_file = st.file_uploader("📷 Upload a picture of your question/problem sheet (Optional)", type=["png", "jpg", "jpeg"])
-    
-if st.button("Solve & Explain instantly"):
-        if user_query:
-            with st.spinner("StudyGenius AI is evaluating the query and generating clean steps..."):
-                try:
-                    # Construct structural prompt context based on student profile data
-                    system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream})."
-                    
-                    # Image aur Text dono handle karne ke liye contents list banayein
-                    content_payload = [user_query]
-                    
-                    # Agar user ne photo upload ki hai, toh use PIL Image banakar list mein add karein
-                    if uploaded_file is not None:
-                        img = Image.open(uploaded_file)
-                        content_payload.append(img)
+    current_payload.append(user_prompt)
 
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=content_payload,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_prompt,
-                            temperature=0.3
-                        )
-                    )
-                    
-                    st.markdown("### 📝 Step-by-Step Resolution:")
-                    st.write(response.text)
-                    st.success("Doubt solved successfully! Read through the breakdown carefully.")
-                    
-                except Exception as e:
-                    st.error(f"Could not reach Gemini API server. Error: {e}")
-        else:
-            st.warning("Please type a question or enter academic text to initiate the solver loop.")
-
-# TAB 2: Study Planner
-with tab2:
-    st.subheader("📅 AI Generated Active Recall Timetable")
-    st.write(f"Based on your daily target of **{study_hours} Hours**, here is your optimized roadmap:")
-    
-    st.markdown(f"""
-    * **06:00 AM - 07:30 AM:** High Cognitive Tasks – Hard Concepts Review (Physics/Math derivations or Chemistry structures)
-    * **04:00 PM - 05:30 PM:** Active Recall Problem Solving & Assignment Sheet Backlogs
-    * **08:30 PM - 09:30 PM:** Revision Blocks & Mock Test Analytics Tracking with StudyGenius Portal
-    """)
-    st.info("Tip: Stick to the regular timetable routines to keep your 5-day daily streak active!")
-
-# TAB 3: Score Tracker
-with tab3:
-    st.subheader("📊 Performance Metrics & Predicted Marks")
-    st.write("Real-time data insights mapping student test scores and accuracy curves.")
-    
-    st.progress(0.73, text="Current Baseline Accuracy Index: 73%")
-    st.markdown("""
-    * **Strong Modules:** Coordinate Geometry, Topics in Mechanics, General Vocabulary.
-    * **Needs Improvement Loop:** Calculus, Multi-step Thermodynamic problems, Organic Conversions.
-    * **Predicted Next Assessment Score:** **73 / 80** (Maintain active consistency to bump this scale up).
-    """)
+    # C. AI Response Streaming Generator
+    with st.chat_message("assistant"):
+        try:
+            # Customized dynamic persona injection
+            system_instruction = f"You are StudyGenius AI, a top-tier educational assistant mentoring a student named {user_name} focusing on {educational_domain}. Respond in a helpful, structured, and easy-to-understand educational tone."
+            
+            model = genai.GenerativeModel(
+                model_name="gemini-2.5-flash",
+                system_instruction=system_instruction
+            )
+            
+            # Format clean text history for Gemini context chain
+            formatted_history = []
+            for msg in st.session_state.chat_history[:-1]:
+                if msg["type"] == "text":
+                    formatted_history.append({
+                        "role": "user" if msg["role"] == "user" else "model",
+                        "parts": [msg["content"]]
+                    })
+            
+            # Start conversational chat session
+            chat = model.start_chat(history=formatted_history)
+            
+            # Request token streaming payload from Gemini
+            response = chat.send_message(current_payload, stream=True)
+            
+            # Real-time fluid text rendering generator function
+            def response_generator():
+                for chunk in response:
+                    yield chunk.text
+                    time.sleep(0.01) # Perfect typing effect pace
+            
+            full_response = st.write_stream(response_generator())
+            
+            # Save the generated final text response to session history
+            st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": full_response})
+            
+        except Exception as e:
+            st.error(f"Error generating response: {e}")
