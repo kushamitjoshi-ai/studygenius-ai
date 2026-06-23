@@ -73,13 +73,13 @@ with tab1:
     uploaded_file = st.file_uploader("📷 Upload a picture of your question/problem sheet (Optional)", type=["png", "jpg", "jpeg"])
     
     if st.button("Solve & Explain instantly"):
-        if user_query:
-            with st.spinner("StudyGenius AI is evaluating the query and generating clean steps..."):
-                try:
-                    # Construct structural prompt context based on student profile data
-                    system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream}). Break down complex topics into clear, structured, step-by-step textbook solutions using formal, premium language. Explain core logic explicitly."
-                    
-                   # Image aur Text dono handle karne ke liye contents list banayein
+    if user_query:
+        with st.spinner("StudyGenius AI is evaluating the query and generating clean steps..."):
+            try:
+                # Construct structural prompt context based on student profile data
+                system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream})."
+                
+                # Image aur Text dono handle karne ke liye contents list banayein
                 content_payload = [user_query]
                 
                 # Agar user ne photo upload ki hai, toh use PIL Image banakar list mein add karein
@@ -95,22 +95,23 @@ with tab1:
                         temperature=0.3
                     )
                 )
-                    st.markdown("### 📝 Step-by-Step Resolution:")
-                    st.write(response.text)
-                    st.success("Doubt solved successfully! Read through the breakdown carefully.")
-                except Exception as e:
-                    st.error("Could not reach Gemini API server. Make sure your key is active.")
-        else:
-            st.warning("Please type a question or enter academic text to initiate the solver loop.")
+                
+                st.markdown("### 📝 Step-by-Step Resolution:")
+                st.write(response.text)
+                st.success("Doubt solved successfully! Read through the breakdown carefully.")
+                
+            except Exception as e:
+                st.error(f"Could not reach Gemini API server. Error: {e}")
+    else:
+        st.warning("Please type a question or enter academic text to initiate the solver loop.")
 
 # TAB 2: Study Planner
 with tab2:
-    st.subheader("📆 AI Generated Active Recall Timetable")
+    st.subheader("📅 AI Generated Active Recall Timetable")
     st.write(f"Based on your daily target of **{study_hours} Hours**, here is your optimized roadmap:")
     
-    # Simple Mock dynamic Schedule Output based on Input Hours
     st.markdown(f"""
-    * **06:00 AM - 07:30 AM:** High Cognitive Tasks — Hard Concepts Review (Physics/Math derivations or Chemistry structures)
+    * **06:00 AM - 07:30 AM:** High Cognitive Tasks – Hard Concepts Review (Physics/Math derivations or Chemistry structures)
     * **04:00 PM - 05:30 PM:** Active Recall Problem Solving & Assignment Sheet Backlogs
     * **08:30 PM - 09:30 PM:** Revision Blocks & Mock Test Analytics Tracking with StudyGenius Portal
     """)
@@ -121,7 +122,6 @@ with tab3:
     st.subheader("📊 Performance Metrics & Predicted Marks")
     st.write("Real-time data insights mapping student test scores and accuracy curves.")
     
-    # Mock data layout representing backend storage data metrics
     st.progress(0.73, text="Current Baseline Accuracy Index: 73%")
     st.markdown("""
     * **Strong Modules:** Coordinate Geometry, Topics in Mechanics, General Vocabulary.
