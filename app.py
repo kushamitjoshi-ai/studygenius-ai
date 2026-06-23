@@ -12,14 +12,15 @@ st.set_page_config(
 )
 
 # Set your Gemini API Key here
-# Yeh code line 16 se 27 ki jagah paste karo
 try:
-    # Direct Secrets se key uthao aur client initialize karo
-    my_key = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client(api_key=my_key)
-    st.sidebar.success("Connection Successful!")
+    if "GEMINI_API_KEY" in st.secrets:
+        my_key = st.secrets["GEMINI_API_KEY"]
+        client = genai.Client(api_key=my_key)
+        st.sidebar.success("✅ Connected to Gemini API!")
+    else:
+        st.sidebar.error("❌ Key missing in Streamlit Secrets!")
 except Exception as e:
-    st.error(f"Connection Failed: {e}")
+    st.sidebar.error(f"❌ Connection Error: {e}")
 
 # Initialize Google GenAI Client
 try:
