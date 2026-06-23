@@ -72,38 +72,38 @@ with tab1:
     # Image input query placeholder
     uploaded_file = st.file_uploader("📷 Upload a picture of your question/problem sheet (Optional)", type=["png", "jpg", "jpeg"])
     
-    if st.button("Solve & Explain instantly"):
-    if user_query:
-        with st.spinner("StudyGenius AI is evaluating the query and generating clean steps..."):
-            try:
-                # Construct structural prompt context based on student profile data
-                system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream})."
-                
-                # Image aur Text dono handle karne ke liye contents list banayein
-                content_payload = [user_query]
-                
-                # Agar user ne photo upload ki hai, toh use PIL Image banakar list mein add karein
-                if uploaded_file is not None:
-                    img = Image.open(uploaded_file)
-                    content_payload.append(img)
+if st.button("Solve & Explain instantly"):
+        if user_query:
+            with st.spinner("StudyGenius AI is evaluating the query and generating clean steps..."):
+                try:
+                    # Construct structural prompt context based on student profile data
+                    system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream})."
+                    
+                    # Image aur Text dono handle karne ke liye contents list banayein
+                    content_payload = [user_query]
+                    
+                    # Agar user ne photo upload ki hai, toh use PIL Image banakar list mein add karein
+                    if uploaded_file is not None:
+                        img = Image.open(uploaded_file)
+                        content_payload.append(img)
 
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=content_payload,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt,
-                        temperature=0.3
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=content_payload,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_prompt,
+                            temperature=0.3
+                        )
                     )
-                )
-                
-                st.markdown("### 📝 Step-by-Step Resolution:")
-                st.write(response.text)
-                st.success("Doubt solved successfully! Read through the breakdown carefully.")
-                
-            except Exception as e:
-                st.error(f"Could not reach Gemini API server. Error: {e}")
-    else:
-        st.warning("Please type a question or enter academic text to initiate the solver loop.")
+                    
+                    st.markdown("### 📝 Step-by-Step Resolution:")
+                    st.write(response.text)
+                    st.success("Doubt solved successfully! Read through the breakdown carefully.")
+                    
+                except Exception as e:
+                    st.error(f"Could not reach Gemini API server. Error: {e}")
+        else:
+            st.warning("Please type a question or enter academic text to initiate the solver loop.")
 
 # TAB 2: Study Planner
 with tab2:
