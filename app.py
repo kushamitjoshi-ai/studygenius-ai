@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from PIL import Image
-import streamlit.components.v1 as components  # 🌟 UI shortcut setup ke liye
+import streamlit.components.v1 as components
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
@@ -13,10 +13,7 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
-# =========================================================================
-# 🌟 GLOBAL INSTANT PASTE CAPTURE (Global Event Listener Code)
-# =========================================================================
-# Yeh injection screen par direct Ctrl+V capability inject kar dega
+# Global Ctrl+V Trigger for Clipboard Images
 components.html(
     """
     <script>
@@ -41,7 +38,7 @@ components.html(
     height=0,
 )
 
-# 2. DYNAMIC PROFILE OVERRIDES (No more hardcoding)
+# 2. USER PROFILE & MODEL SELECTION SIDEBAR
 st.sidebar.title("👤 User Profile")
 profile_user = st.sidebar.text_input("Enter Your Name:", value="Guest Student")
 domain_focus = st.sidebar.selectbox(
@@ -49,33 +46,45 @@ domain_focus = st.sidebar.selectbox(
     ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
 )
 
-# 3. INTERACTIVE CLIPBOARD / FILE INPUT HANDLING
+# 🌟 MODEL SWITCHER FEATURE (Exactly like your screenshot)
+st.sidebar.markdown("---")
+st.sidebar.subheader("🤖 AI Brain Configuration")
+selected_model_display = st.sidebar.selectbox(
+    "Choose Gemini Version:",
+    ["Gemini 2.5 Flash (Latest & Fast)", "Gemini 1.5 Flash (High Quota Backup)"]
+)
+
+# Technical name mapping for API pipeline
+if "2.5" in selected_model_display:
+    chosen_model_id = "gemini-2.5-flash"
+else:
+    chosen_model_id = "gemini-1.5-flash"
+
+# 3. MULTIMODAL CAPTURE PANEL
 st.sidebar.markdown("---")
 st.sidebar.subheader("📸 Visual Query Support")
-st.sidebar.info("💡 Pro-Tip: You can press **Ctrl + V** anywhere on this page to paste a clip instantly!")
+st.sidebar.info("💡 Pro-Tip: Press **Ctrl + V** anywhere to paste screenshots instantly!")
 
 uploaded_visual_file = st.sidebar.file_uploader("Upload or Paste image file", type=["png", "jpg", "jpeg"])
 
 processed_image_payload = None
 if uploaded_visual_file is not None:
     processed_image_payload = Image.open(uploaded_visual_file)
-    st.sidebar.image(processed_image_payload, caption="⚡ Image Processed & Synced", use_container_width=True)
+    st.sidebar.image(processed_image_payload, caption="⚡ Image Processed", use_container_width=True)
 
-# Clear History UI
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Chat History"):
     st.session_state.chat_history = []
     st.rerun()
 
-# 4. CHAT HISTORY MATRIX STATE
+# 4. INITIALIZE HISTORY MATRIX
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Application Branding Frame
 st.title("🚀 StudyGenius AI")
-st.caption(f"Session Stream: **{profile_user}** | Target Profile: **{domain_focus}**")
+st.caption(f"Session Stream: **{profile_user}** | Focus: **{domain_focus}** | Active Brain: **{chosen_model_id}**")
 
-# 5. DYNAMIC CHAT RENDER (Ensures safe payload mapping)
+# 5. RENDER CONVERSATION HISTORY
 for chat_node in st.session_state.chat_history:
     with st.chat_message(chat_node["role"]):
         if chat_node["type"] == "text":
@@ -84,37 +93,34 @@ for chat_node in st.session_state.chat_history:
             st.image(chat_node["content"], caption="Injected Structural Reference")
 
 # =========================================================================
-# 6. STREAM ENGINE PIPELINE EXECUTION
+# 6. STREAM ENGINE PIPELINE
 # =========================================================================
 if current_user_query := st.chat_input("Ask StudyGenius anything..."):
     
     execution_payload_package = []
     
-    # Check aur push visual payloads safely
     if processed_image_payload is not None:
         execution_payload_package.append(processed_image_payload)
         with st.chat_message("user"):
             st.image(processed_image_payload, caption="User Attached Visual")
         st.session_state.chat_history.append({"role": "user", "type": "image", "content": processed_image_payload})
 
-    # Standard textual logger setup
     with st.chat_message("user"):
         st.markdown(current_user_query)
     st.session_state.chat_history.append({"role": "user", "type": "text", "content": current_user_query})
     
     execution_payload_package.append(current_user_query)
 
-    # Core Generative LLM Handler Block
     with st.chat_message("assistant"):
         try:
             curated_persona_matrix = f"You are StudyGenius AI, a top-tier educational assistant mentoring a student named {profile_user} focusing on {domain_focus}. Respond in a helpful, structured, and easy-to-understand educational tone."
             
+            # 🌟 Dynamically loads model based on sidebar selector dropdown!
             ai_model_instance = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
+                model_name=chosen_model_id,
                 system_instruction=curated_persona_matrix
             )
             
-            # Context compression wrapper (Prevents quick 429 errors by filtering context)
             clean_historical_context = []
             for node in st.session_state.chat_history[:-1]:
                 if node["type"] == "text":
@@ -126,15 +132,12 @@ if current_user_query := st.chat_input("Ask StudyGenius anything..."):
             active_chat_thread = ai_model_instance.start_chat(history=clean_historical_context)
             stream_response_chunks = active_chat_thread.send_message(execution_payload_package, stream=True)
             
-            # Live Fluid Output Generation Loop
             def text_stream_unroller():
                 for piece in stream_response_chunks:
                     yield piece.text
-                    time.sleep(0.005) # Hyper-fast stable print layout
+                    time.sleep(0.005)
             
             rendered_final_response = st.write_stream(text_stream_unroller())
-            
-            # Memory dump allocation
             st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": rendered_final_response})
             
         except Exception as runtime_error:
