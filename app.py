@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from google import genai
 from google.genai import types
-
+from PIL import Image
 # Page Configurations
 st.set_page_config(
     page_title="StudyGenius AI",
