@@ -2,7 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from PIL import Image
-from streamlit_paste_button import paste_image_button  # 🌟 Clipboard paste ke liye library
+import streamlit.components.v1 as components  # 🌟 Custom JS inject karne ke liye
+from streamlit_paste_button import paste_image_button
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
@@ -13,6 +14,35 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
+# =========================================================================
+# 🌟 GLOBAL CTRL + V KEYBOARD SHORTCUT INJECTION (JavaScript Magic)
+# =========================================================================
+# Yeh script tumhare pure webpage par Ctrl+V bypass activate kar degi
+components.html(
+    """
+    <script>
+    const doc = window.parent.document;
+    doc.addEventListener('paste', async (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                // Streamlit ke default file uploader component ko target karke file drop trigger karna
+                const fileUploader = doc.querySelector('input[type="file"]');
+                if (fileUploader) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(blob);
+                    fileUploader.files = dataTransfer.files;
+                    fileUploader.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+    });
+    </script>
+    """,
+    height=0, # Isko hidden rakhenge taaki UI kharab na ho
+)
+
 # 2. DYNAMIC USER PROFILE SIDEBAR
 st.sidebar.title("👤 User Profile")
 user_name = st.sidebar.text_input("Enter Your Name:", value="Guest Student")
@@ -21,33 +51,32 @@ educational_domain = st.sidebar.selectbox(
     ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
 )
 
-# 3. ADVANCED MULTIMODAL: CLIPBOARD PASTE & FILE UPLOADER
+# 3. MULTIMODAL FEATURE (Handles Click & Global Ctrl+V)
 st.sidebar.markdown("---")
 st.sidebar.subheader("📸 Visual Query Support")
+st.sidebar.info("💡 Tip: You can now press **Ctrl + V** anywhere on this page to paste a screenshot instantly!")
 
-# Option A: Direct Clipboard Paste (Ctrl + V)
-st.sidebar.write("Click below & paste (`Ctrl+V`) your screenshot:")
+# Native file uploader jiske andar humara JavaScript data push karega
+uploaded_file = st.sidebar.file_uploader("Upload or Paste image file", type=["png", "jpg", "jpeg"])
+
+# Backup Paste Button (Just in case browser permissions blocks JS)
 paste_result = paste_image_button(
-    label="📋 Paste Image from Clipboard",
+    label="📋 Click to Paste from Clipboard",
     text_color="#ffffff",
     background_color="#FF4B4B",
     hover_background_color="#E03A3A",
     errors="ignore"
 )
 
-# Option B: Standard File Uploader (Backup tool)
-uploaded_file = st.sidebar.file_uploader("Or upload image file manually", type=["png", "jpg", "jpeg"])
-
-# Variable to hold the active image payload
 active_image = None
 
-# Prioritize paste button data, if empty check uploader
-if paste_result and paste_result.image_data is not None:
-    active_image = paste_result.image_data
-    st.sidebar.image(active_image, caption="📋 Clipboard Image Detected", use_container_width=True)
-elif uploaded_file is not None:
+# Checking inputs priority
+if uploaded_file is not None:
     active_image = Image.open(uploaded_file)
-    st.sidebar.image(active_image, caption="📁 File Uploaded Successfully", use_container_width=True)
+    st.sidebar.image(active_image, caption="📁 Image Processed Successfully", use_container_width=True)
+elif paste_result and paste_result.image_data is not None:
+    active_image = paste_result.image_data
+    st.sidebar.image(active_image, caption="📋 Clipboard Data Detected", use_container_width=True)
 
 # Clear History Button
 st.sidebar.markdown("---")
@@ -72,21 +101,18 @@ for message in st.session_state.chat_history:
             st.image(message["content"], caption="Analyzed Visual Context")
 
 # =========================================================================
-# 6. INTERACTIVE STREAMING MODE (With Clipboard Image Injection)
+# 6. INTERACTIVE STREAMING MODE
 # =========================================================================
 if user_prompt := st.chat_input("Ask StudyGenius anything..."):
     
-    # Multimodal payload setup
     current_payload = []
     
-    # Check if there is an active image (either pasted or uploaded)
     if active_image is not None:
         current_payload.append(active_image)
         with st.chat_message("user"):
             st.image(active_image, caption="Sent Image Analysis Request")
         st.session_state.chat_history.append({"role": "user", "type": "image", "content": active_image})
 
-    # Append and log User Text
     with st.chat_message("user"):
         st.markdown(user_prompt)
     st.session_state.chat_history.append({"role": "user", "type": "text", "content": user_prompt})
@@ -103,7 +129,6 @@ if user_prompt := st.chat_input("Ask StudyGenius anything..."):
                 system_instruction=system_instruction
             )
             
-            # Extract clean context string for conversation flow
             formatted_history = []
             for msg in st.session_state.chat_history[:-1]:
                 if msg["type"] == "text":
@@ -122,7 +147,6 @@ if user_prompt := st.chat_input("Ask StudyGenius anything..."):
             
             full_response = st.write_stream(response_generator())
             
-            # Save AI's response to history
             st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": full_response})
             
         except Exception as e:
