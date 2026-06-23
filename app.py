@@ -46,19 +46,25 @@ domain_focus = st.sidebar.selectbox(
     ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
 )
 
-# 🌟 MODEL SWITCHER FEATURE (Exactly like your screenshot)
+# 🌟 DYNAMIC LATEST MODEL SWITCHER PANEL (No more 404 errors)
 st.sidebar.markdown("---")
 st.sidebar.subheader("🤖 AI Brain Configuration")
 selected_model_display = st.sidebar.selectbox(
     "Choose Gemini Version:",
-    ["Gemini 2.5 Flash (Latest & Fast)", "Gemini 1.5 Flash (High Quota Backup)"]
+    [
+        "Gemini 2.5 Flash (Default Speed)", 
+        "Gemini 2.5 Flash-Lite (Low Quota Mode)",
+        "Gemini 2.5 Pro (Advanced Logic & Maths)"
+    ]
 )
 
-# Technical name mapping for API pipeline
-if "2.5" in selected_model_display:
-    chosen_model_id = "gemini-2.5-flash"
+# Technical name mapping according to latest SDK registry
+if "2.5 Flash-Lite" in selected_model_display:
+    chosen_model_id = "gemini-2.5-flash-lite"
+elif "2.5 Pro" in selected_model_display:
+    chosen_model_id = "gemini-2.5-pro"
 else:
-    chosen_model_id = "gemini-1.5-flash"
+    chosen_model_id = "gemini-2.5-flash"
 
 # 3. MULTIMODAL CAPTURE PANEL
 st.sidebar.markdown("---")
@@ -115,7 +121,6 @@ if current_user_query := st.chat_input("Ask StudyGenius anything..."):
         try:
             curated_persona_matrix = f"You are StudyGenius AI, a top-tier educational assistant mentoring a student named {profile_user} focusing on {domain_focus}. Respond in a helpful, structured, and easy-to-understand educational tone."
             
-            # 🌟 Dynamically loads model based on sidebar selector dropdown!
             ai_model_instance = genai.GenerativeModel(
                 model_name=chosen_model_id,
                 system_instruction=curated_persona_matrix
