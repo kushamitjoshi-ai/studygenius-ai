@@ -2,152 +2,139 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from PIL import Image
-import streamlit.components.v1 as components  # 🌟 Custom JS inject karne ke liye
-from streamlit_paste_button import paste_image_button
+import streamlit.components.v1 as components  # JavaScript trigger handles ke liye
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
 
-# API Key Config from Streamlit Secrets
+# API Key Secrets Pull
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
 # =========================================================================
-# 🌟 GLOBAL CTRL + V KEYBOARD SHORTCUT INJECTION (JavaScript Magic)
+# 🌟 GLOBAL INSTANT PASTE CAPTURE (Global Event Listener Code)
 # =========================================================================
-# Yeh script tumhare pure webpage par Ctrl+V bypass activate kar degi
 components.html(
     """
     <script>
-    const doc = window.parent.document;
-    doc.addEventListener('paste', async (e) => {
-        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (const item of items) {
+    const parentDoc = window.parent.document;
+    parentDoc.addEventListener('paste', async (e) => {
+        const clipboardItems = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of clipboardItems) {
             if (item.type.indexOf('image') !== -1) {
-                const blob = item.getAsFile();
-                // Streamlit ke default file uploader component ko target karke file drop trigger karna
-                const fileUploader = doc.querySelector('input[type="file"]');
-                if (fileUploader) {
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(blob);
-                    fileUploader.files = dataTransfer.files;
-                    fileUploader.dispatchEvent(new Event('change', { bubbles: true }));
+                const imageBlob = item.getAsFile();
+                const uploaderInput = parentDoc.querySelector('input[type="file"]');
+                if (uploaderInput) {
+                    const fileTransferCarrier = new DataTransfer();
+                    fileTransferCarrier.items.add(imageBlob);
+                    uploaderInput.files = fileTransferCarrier.files;
+                    uploaderInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
         }
     });
     </script>
     """,
-    height=0, # Isko hidden rakhenge taaki UI kharab na ho
+    height=0,
 )
 
-# 2. DYNAMIC USER PROFILE SIDEBAR
+# 2. DYNAMIC PROFILE OVERRIDES (No more hardcoding)
 st.sidebar.title("👤 User Profile")
-user_name = st.sidebar.text_input("Enter Your Name:", value="Guest Student")
-educational_domain = st.sidebar.selectbox(
+profile_user = st.sidebar.text_input("Enter Your Name:", value="Guest Student")
+domain_focus = st.sidebar.selectbox(
     "Select Educational Focus:",
     ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
 )
 
-# 3. MULTIMODAL FEATURE (Handles Click & Global Ctrl+V)
+# 3. INTERACTIVE CLIPBOARD / FILE INPUT HANDLING
 st.sidebar.markdown("---")
 st.sidebar.subheader("📸 Visual Query Support")
-st.sidebar.info("💡 Tip: You can now press **Ctrl + V** anywhere on this page to paste a screenshot instantly!")
+st.sidebar.info("💡 Pro-Tip: You can press **Ctrl + V** anywhere on this page to paste a clip instantly!")
 
-# Native file uploader jiske andar humara JavaScript data push karega
-uploaded_file = st.sidebar.file_uploader("Upload or Paste image file", type=["png", "jpg", "jpeg"])
+uploaded_visual_file = st.sidebar.file_uploader("Upload or Paste image file", type=["png", "jpg", "jpeg"])
 
-# Backup Paste Button (Just in case browser permissions blocks JS)
-paste_result = paste_image_button(
-    label="📋 Click to Paste from Clipboard",
-    text_color="#ffffff",
-    background_color="#FF4B4B",
-    hover_background_color="#E03A3A",
-    errors="ignore"
-)
+processed_image_payload = None
+if uploaded_visual_file is not None:
+    processed_image_payload = Image.open(uploaded_visual_file)
+    st.sidebar.image(processed_image_payload, caption="⚡ Image Processed & Synced", use_container_width=True)
 
-active_image = None
-
-# Checking inputs priority
-if uploaded_file is not None:
-    active_image = Image.open(uploaded_file)
-    st.sidebar.image(active_image, caption="📁 Image Processed Successfully", use_container_width=True)
-elif paste_result and paste_result.image_data is not None:
-    active_image = paste_result.image_data
-    st.sidebar.image(active_image, caption="📋 Clipboard Data Detected", use_container_width=True)
-
-# Clear History Button
+# Clear History UI
 st.sidebar.markdown("---")
 if st.sidebar.button("🗑️ Clear Chat History"):
     st.session_state.chat_history = []
     st.rerun()
 
-# 4. INITIALIZE CHAT HISTORY
+# 4. CHAT HISTORY MATRIX STATE
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Main App Header
+# Application Branding Frame
 st.title("🚀 StudyGenius AI")
-st.caption(f"Logged in as: **{user_name}** | Focus: **{educational_domain}**")
+st.caption(f"Session Stream: **{profile_user}** | Target Profile: **{domain_focus}**")
 
-# 5. DISPLAY PAST CONVERSATION
-for message in st.session_state.chat_history:
-    with st.chat_message(message["role"]):
-        if message["type"] == "text":
-            st.markdown(message["content"])
-        elif message["type"] == "image":
-            st.image(message["content"], caption="Analyzed Visual Context")
+# 5. DYNAMIC CHAT RENDER (Ensures safe payload mapping)
+for chat_node in st.session_state.chat_history:
+    with st.chat_message(chat_node["role"]):
+        if chat_node["type"] == "text":
+            st.markdown(chat_node["content"])
+        elif chat_node["type"] == "image":
+            st.image(chat_node["content"], caption="Injected Structural Reference")
 
 # =========================================================================
-# 6. INTERACTIVE STREAMING MODE
+# 6. STREAM ENGINE PIPELINE EXECUTION
 # =========================================================================
-if user_prompt := st.chat_input("Ask StudyGenius anything..."):
+if current_user_query := st.chat_input("Ask StudyGenius anything..."):
     
-    current_payload = []
+    execution_payload_package = []
     
-    if active_image is not None:
-        current_payload.append(active_image)
+    # Check aur push visual payloads safely
+    if processed_image_payload is not None:
+        execution_payload_package.append(processed_image_payload)
         with st.chat_message("user"):
-            st.image(active_image, caption="Sent Image Analysis Request")
-        st.session_state.chat_history.append({"role": "user", "type": "image", "content": active_image})
+            st.image(processed_image_payload, caption="User Attached Visual")
+        st.session_state.chat_history.append({"role": "user", "type": "image", "content": processed_image_payload})
 
+    # Standard textual logger setup
     with st.chat_message("user"):
-        st.markdown(user_prompt)
-    st.session_state.chat_history.append({"role": "user", "type": "text", "content": user_prompt})
+        st.markdown(current_user_query)
+    st.session_state.chat_history.append({"role": "user", "type": "text", "content": current_user_query})
     
-    current_payload.append(user_prompt)
+    execution_payload_package.append(current_user_query)
 
-    # AI Response Streaming Engine
+    # Core Generative LLM Handler Block
     with st.chat_message("assistant"):
         try:
-            system_instruction = f"You are StudyGenius AI, a top-tier educational assistant mentoring a student named {user_name} focusing on {educational_domain}. Respond in a helpful, structured, and easy-to-understand educational tone."
+            curated_persona_matrix = f"You are StudyGenius AI, a top-tier educational assistant mentoring a student named {profile_user} focusing on {domain_focus}. Respond in a helpful, structured, and easy-to-understand educational tone."
             
-            model = genai.GenerativeModel(
+            ai_model_instance = genai.GenerativeModel(
                 model_name="gemini-2.5-flash",
-                system_instruction=system_instruction
+                system_instruction=curated_persona_matrix
             )
             
-            formatted_history = []
-            for msg in st.session_state.chat_history[:-1]:
-                if msg["type"] == "text":
-                    formatted_history.append({
-                        "role": "user" if msg["role"] == "user" else "model",
-                        "parts": [msg["content"]]
+            # Context compression wrapper (Prevents quick 429 errors by filtering context)
+            clean_historical_context = []
+            for node in st.session_state.chat_history[:-1]:
+                if node["type"] == "text":
+                    clean_historical_context.append({
+                        "role": "user" if node["role"] == "user" else "model",
+                        "parts": [node["content"]]
                     })
             
-            chat = model.start_chat(history=formatted_history)
-            response = chat.send_message(current_payload, stream=True)
+            active_chat_thread = ai_model_instance.start_chat(history=clean_historical_context)
+            stream_response_chunks = active_chat_thread.send_message(execution_payload_package, stream=True)
             
-            def response_generator():
-                for chunk in response:
-                    yield chunk.text
-                    time.sleep(0.01)
+            # Live Fluid Output Generation Loop
+            def text_stream_unroller():
+                for piece in stream_response_chunks:
+                    yield piece.text
+                    time.sleep(0.005) # Hyper-fast stable print layout
             
-            full_response = st.write_stream(response_generator())
+            rendered_final_response = st.write_stream(text_stream_unroller())
             
-            st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": full_response})
+            # Memory dump allocation
+            st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": rendered_final_response})
             
-        except Exception as e:
-            st.error(f"Error generating response: {e}")
+        except Exception as runtime_error:
+            st.error(f"Error handling query pipeline: {runtime_error}")
