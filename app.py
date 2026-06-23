@@ -79,14 +79,22 @@ with tab1:
                     # Construct structural prompt context based on student profile data
                     system_prompt = f"You are StudyGenius AI, an expert, encouraging academic mentor for a student named {student_name} studying in {grade} ({stream}). Break down complex topics into clear, structured, step-by-step textbook solutions using formal, premium language. Explain core logic explicitly."
                     
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=user_query,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_prompt,
-                            temperature=0.3
-                        )
+                   # Image aur Text dono handle karne ke liye contents list banayein
+                content_payload = [user_query]
+                
+                # Agar user ne photo upload ki hai, toh use PIL Image banakar list mein add karein
+                if uploaded_file is not None:
+                    img = Image.open(uploaded_file)
+                    content_payload.append(img)
+
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=content_payload,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        temperature=0.3
                     )
+                )
                     st.markdown("### 📝 Step-by-Step Resolution:")
                     st.write(response.text)
                     st.success("Doubt solved successfully! Read through the breakdown carefully.")
