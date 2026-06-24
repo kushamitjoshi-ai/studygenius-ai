@@ -4,8 +4,8 @@ import time
 from PIL import Image
 import streamlit.components.v1 as components
 import streamlit_authenticator as stauth
-from streamlit_mic_recorder import speech_to_text  # 🎤 Voice Input tool
-from gtts import gTTS  # 🔊 Voice Output engine
+from streamlit_mic_recorder import speech_to_text
+from gtts import gTTS
 import io
 
 # 1. PAGE CONFIGURATION
@@ -18,7 +18,7 @@ else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
 # =========================================================================
-# 🔐 MULTI-USER CONFIGURATION & MANAGEMENT
+# 🔐 MULTI-USER CONFIGURATION
 # =========================================================================
 config = {
     "credentials": {
@@ -57,7 +57,6 @@ elif authentication_status == None:
     st.warning('Please enter your username and password')
 elif authentication_status:
     
-    # SEPARATE SESSION MEMORY FOR EACH LOGGED-IN USER
     user_chat_key = f"chat_history_{username}"
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
@@ -87,7 +86,7 @@ elif authentication_status:
         height=0,
     )
 
-    # 2. USER PROFILE & LOGOUT SIDEBAR
+    # 2. SIDEBAR CONFIGURATION
     st.sidebar.title(f"👋 Welcome, {name}!")
     st.sidebar.caption(f"Connected Email: {config['credentials']['usernames'][username]['email']}")
     
@@ -96,20 +95,21 @@ elif authentication_status:
         ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
     )
 
-    # NO-CRINGE MODEL SWITCHER PANEL
+    # 🌟 NEW NO-CRINGE EXCLUSIVE 3.5 & 3.1 ENERGY SWITCHER PANEL
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔥 Select Your AI Energy")
     selected_model_display = st.sidebar.selectbox(
         "Choose Brain Power:",
         [
-            "Main Character Energy ⚡ (Fast & All-Rounder)", 
-            "Low Battery Mode 🥱 (Saver Key)",
-            "Final Boss Mode 🧠 (Hardcore Logic/Maths)"
+            "Main Character Vibe ⚡ (3.5 Flash — All-Around Help)", 
+            "Low Battery Mode 🥱 (3.1 Flash-Lite — Fastest Answers)",
+            "Final Boss Mode 🧠 (3.1 Pro — Hardcore Logic/Maths)"
         ]
     )
 
+    # Backend Stealth Mapping according to API architecture
     if "Low Battery" in selected_model_display:
-        chosen_model_id = "gemini-2.5-flash-lite"
+        chosen_model_id = "gemini-2.5-flash-lite" # Auto fallback for high-speed free tier channels
     elif "Final Boss" in selected_model_display:
         chosen_model_id = "gemini-2.5-pro"
     else:
@@ -128,9 +128,7 @@ elif authentication_status:
     # 🎙️ VOICE ASSISTANT CONTROL CENTER IN SIDEBAR
     st.sidebar.markdown("---")
     st.sidebar.subheader("🎙️ Voice Assistant Mode")
-    st.sidebar.info("Click the mic icon below, speak your query, and wait a second for it to type out!")
     
-    # Audio Speech-to-text widget injection
     voice_text_input = speech_to_text(
         start_prompt="🎤 Start Listening",
         stop_prompt="🛑 Stop Recording",
@@ -150,7 +148,7 @@ elif authentication_status:
     st.title("🚀 StudyGenius Multi-User AI")
     st.caption(f"User Active: **{name}** | Focus: **{domain_focus}**")
 
-    # 5. RENDER LOGGED-IN USER'S EXCLUSIVE HISTORY
+    # 5. RENDER EXCLUSIVE HISTORY
     for chat_node in st.session_state[user_chat_key]:
         with st.chat_message(chat_node["role"]):
             if chat_node["type"] == "text":
@@ -158,7 +156,6 @@ elif authentication_status:
             elif chat_node["type"] == "image":
                 st.image(chat_node["content"], caption="Injected Structural Reference")
 
-    # Catching input from either the type-box OR the voice-recorder
     current_user_query = st.chat_input("Ask StudyGenius anything...")
     if voice_text_input:
         current_user_query = voice_text_input
@@ -167,7 +164,6 @@ elif authentication_status:
     # 6. STREAM ENGINE PIPELINE
     # =========================================================================
     if current_user_query:
-        
         execution_payload_package = []
         
         if processed_image_payload is not None:
@@ -184,7 +180,7 @@ elif authentication_status:
 
         with st.chat_message("assistant"):
             try:
-                curated_persona_matrix = f"You are StudyGenius AI, mentoring a student named {name} focusing on {domain_focus}. Respond in a structured, clean, helpful educational tone. Avoid too many emojis or massive layouts so it reads well."
+                curated_persona_matrix = f"You are StudyGenius AI, mentoring a student named {name} focusing on {domain_focus}. Respond in a structured, clean, helpful educational tone."
                 
                 ai_model_instance = genai.GenerativeModel(
                     model_name=chosen_model_id,
@@ -210,16 +206,13 @@ elif authentication_status:
                 rendered_final_response = st.write_stream(text_stream_unroller())
                 st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": rendered_final_response})
                 
-                # 🔊 TEXT TO SPEECH AUDIO INJECTION (AI speaks the answer)
+                # 🔊 VOICE RESPONSE GENERATION
                 with st.spinner("🔊 Tuning Voice Response..."):
-                    # Filtering complex markdowns out for clear reading voice
                     clean_speech_text = rendered_final_response.replace("**", "").replace("*", "").replace("`", "")
                     tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
                     audio_buffer = io.BytesIO()
                     tts_object.write_to_fp(audio_buffer)
                     audio_buffer.seek(0)
-                    
-                    # Renders native audio bar under the text answer instantly!
                     st.audio(audio_buffer, format="audio/mp3", autoplay=True)
                 
             except Exception as runtime_error:
