@@ -19,21 +19,34 @@ else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
 # =========================================================================
-# 💾 PERSISTENT LOCAL DATABASE LOGIC (Bina kisi external database ke)
+# 💾 PERSISTENT LOCAL DATABASE LOGIC
 # =========================================================================
 DB_FILE = "users_db.json"
 
 def load_users():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    return {
-        "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"}
+    # Tumhari unique details ko permanently base record bana diya hai
+    default_records = {
+        "kushagra joshi": {"password": "Amidhi#11", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
+        "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
+        "student2": {"password": "456", "name": "Classmate", "email": "friend@example.com"}
     }
+    
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                saved_data = json.load(f)
+                # Ensure permanent records are always present
+                for k, v in default_records.items():
+                    if k not in saved_data:
+                        saved_data[k] = v
+                return saved_data
+        except:
+            return default_records
+    return default_records
 
 def save_user(username, password, name, email):
     users = load_users()
-    users[username.lower()] = {"password": password, "name": name, "email": email}
+    users[username.lower().strip()] = {"password": password, "name": name, "email": email}
     with open(DB_FILE, "w") as f:
         json.dump(users, f, indent=4)
 
@@ -48,7 +61,6 @@ if "logged_in" not in st.session_state:
 if not st.session_state.logged_in:
     st.title("🎓 Welcome to StudyGenius Portal")
     
-    # Simple Segmented Control for Action Choice
     auth_action = st.radio("Choose Action:", ["Login to Existing Account", "Create New Account (Sign Up)"], horizontal=True)
     
     users_db = load_users()
@@ -58,7 +70,7 @@ if not st.session_state.logged_in:
         with st.form("signup_form"):
             new_name = st.text_input("Full Name")
             new_email = st.text_input("Email Address")
-            new_username = st.text_input("Choose Username (Lowercase only)").lower().strip()
+            new_username = st.text_input("Choose Username").lower().strip()
             new_password = st.text_input("Set Password", type="password")
             signup_submit = st.form_submit_button("Sign Up & Register")
             
@@ -124,7 +136,7 @@ else:
         height=0,
     )
 
-    # 2. SIDEBAR CONFIGURATION
+    # SIDEBAR CONFIGURATION
     st.sidebar.title(f"👋 Welcome, {name}!")
     st.sidebar.caption(f"Connected Email: {user_email}")
     
@@ -133,7 +145,7 @@ else:
         ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
     )
 
-    # 🔥 GENZ DYNAMIC ENERGY PANEL
+    # GENZ DYNAMIC ENERGY PANEL
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔥 Select Your AI Energy")
     selected_model_display = st.sidebar.selectbox(
@@ -162,7 +174,7 @@ else:
         processed_image_payload = Image.open(uploaded_visual_file)
         st.sidebar.image(processed_image_payload, caption="⚡ Image Processed", use_container_width=True)
 
-    # 🎙️ VOICE ASSISTANT CONTROL CENTER IN SIDEBAR
+    # VOICE ASSISTANT CONTROL CENTER
     st.sidebar.markdown("---")
     st.sidebar.subheader("🎙️ Voice Assistant Mode")
     
@@ -179,7 +191,6 @@ else:
         st.session_state[user_chat_key] = []
         st.rerun()
 
-    # Clean custom logout mechanism
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.session_state.current_user = None
@@ -202,7 +213,7 @@ else:
         current_user_query = voice_text_input
 
     # =========================================================================
-    # 6. STREAM ENGINE PIPELINE
+    # STREAM ENGINE PIPELINE
     # =========================================================================
     if current_user_query:
         execution_payload_package = []
@@ -247,7 +258,6 @@ else:
                 rendered_final_response = st.write_stream(text_stream_unroller())
                 st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": rendered_final_response})
                 
-                # 🔊 VOICE RESPONSE GENERATION
                 with st.spinner("🔊 Tuning Voice Response..."):
                     clean_speech_text = rendered_final_response.replace("**", "").replace("*", "").replace("`", "")
                     tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
