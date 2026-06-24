@@ -178,31 +178,6 @@ if st.session_state.logged_in or st.session_state.is_guest:
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
 
-    # Global Clipboard Image Injection script
-    components.html(
-        """
-        <script>
-        const parentDoc = window.parent.document;
-        parentDoc.addEventListener('paste', async (e) => {
-            const clipboardItems = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (const item of clipboardItems) {
-                if (item.type.indexOf('image') !== -1) {
-                    const imageBlob = item.getAsFile();
-                    const uploaderInput = parentDoc.querySelector('input[type="file"]');
-                    if (uploaderInput) {
-                        const fileTransferCarrier = new DataTransfer();
-                        fileTransferCarrier.items.add(imageBlob);
-                        uploaderInput.files = fileTransferCarrier.files;
-                        uploaderInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                }
-            }
-        });
-        </script>
-        """,
-        height=0,
-    )
-
     # SIDEBAR CONFIGURATION
     st.sidebar.title(f"👋 Welcome, {name}!")
     st.sidebar.caption(f"Connected Email: {user_email}")
@@ -265,6 +240,7 @@ if st.session_state.logged_in or st.session_state.is_guest:
     st.title("🚀 StudyGenius Multi-User AI")
     st.caption(f"User Active: **{name}** | Focus: **{domain_focus}**")
 
+    # Render History safely
     for chat_node in st.session_state[user_chat_key]:
         with st.chat_message(chat_node["role"]):
             if chat_node["type"] == "text":
@@ -272,62 +248,48 @@ if st.session_state.logged_in or st.session_state.is_guest:
             elif chat_node["type"] == "image":
                 st.image(chat_node["content"], caption="Injected Structural Reference")
 
+    # 🛠️ CHAT INPUT PROCESSOR (Fixed and optimized)
     current_user_query = st.chat_input("Ask StudyGenius anything...")
     if voice_text_input:
         current_user_query = voice_text_input
 
-    # =========================================================================
-    # STREAM ENGINE PIPELINE
-    # =========================================================================
     if current_user_query:
-        execution_payload_package = []
-        
-        if processed_image_payload is not None:
-            execution_payload_package.append(processed_image_payload)
-            with st.chat_message("user"):
-                st.image(processed_image_payload, caption="User Attached Visual")
-            st.session_state[user_chat_key].append({"role": "user", "type": "image", "content": processed_image_payload})
-
+        # Display immediately on screen to confirm it's typed
         with st.chat_message("user"):
             st.markdown(current_user_query)
-        st.session_state[user_chat_key].append({"role": "user", "type": "text", "content": current_user_query})
         
+        # Core data payload builder
+        execution_payload_package = []
+        if processed_image_payload is not None:
+            execution_payload_package.append(processed_image_payload)
+            st.session_state[user_chat_key].append({"role": "user", "type": "image", "content": processed_image_payload})
+        
+        st.session_state[user_chat_key].append({"role": "user", "type": "text", "content": current_user_query})
         execution_payload_package.append(current_user_query)
 
         with st.chat_message("assistant"):
             try:
                 curated_persona_matrix = f"You are StudyGenius AI, mentoring a student named {name} focusing on {domain_focus}. Respond in a structured, clean, helpful educational tone."
                 
+                # Direct generation to prevent historical array mismatch locks
                 ai_model_instance = genai.GenerativeModel(
                     model_name=chosen_model_id,
                     system_instruction=curated_persona_matrix
                 )
                 
-                clean_historical_context = []
-                for node in st.session_state[user_chat_key][:-1]:
-                    if node["type"] == "text":
-                        clean_historical_context.append({
-                            "role": "user" if node["role"] == "user" else "model",
-                            "parts": [node["content"]]
-                        })
-                
-                active_chat_thread = ai_model_instance.start_chat(history=clean_historical_context)
-                stream_response_chunks = active_chat_thread.send_message(execution_payload_package, stream=True)
-                
-                def text_stream_unroller():
-                    for piece in stream_response_chunks:
-                        yield piece.text
-                        time.sleep(0.005)
-                
-                rendered_final_response = st.write_stream(text_stream_unroller())
-                st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": rendered_final_response})
+                # Dynamic stream runner
+                with st.spinner("Brainstorming response..."):
+                    response = ai_model_instance.generate_content(execution_payload_package)
+                    rendered_final_response = st.write(response.text)
+                    
+                st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": response.text})
                 
                 st.markdown("---")
                 play_voice_response = st.checkbox("🔊 Play Voice Response for this answer", key=f"voice_choice_{len(st.session_state[user_chat_key])}")
                 
                 if play_voice_response:
                     with st.spinner("🔊 Tuning Voice Response..."):
-                        clean_speech_text = rendered_final_response.replace("**", "").replace("*", "").replace("`", "")
+                        clean_speech_text = response.text.replace("**", "").replace("*", "").replace("`", "")
                         tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
                         audio_buffer = io.BytesIO()
                         tts_object.write_to_fp(audio_buffer)
