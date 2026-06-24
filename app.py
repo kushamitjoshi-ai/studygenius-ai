@@ -6,6 +6,8 @@ import streamlit.components.v1 as components
 from streamlit_mic_recorder import speech_to_text
 from gtts import gTTS
 import io
+import json
+import os
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
@@ -17,36 +19,81 @@ else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
 # =========================================================================
-# 🔐 CLEAN MULTI-USER LOGIN PORTAL (Error-Free Structure)
+# 💾 PERSISTENT LOCAL DATABASE LOGIC (Bina kisi external database ke)
 # =========================================================================
-users_database = {
-    "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
-    "student2": {"password": "456", "name": "Classmate", "email": "friend@example.com"}
-}
+DB_FILE = "users_db.json"
 
+def load_users():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    return {
+        "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"}
+    }
+
+def save_user(username, password, name, email):
+    users = load_users()
+    users[username.lower()] = {"password": password, "name": name, "email": email}
+    with open(DB_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
+# Initialize global authentication states
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.current_user = None
 
+# =========================================================================
+# 🔐 GATEWAY SYSTEM: SIGN UP & LOGIN TOGGLE
+# =========================================================================
 if not st.session_state.logged_in:
-    st.title("🔐 StudyGenius Portal")
-    with st.form("login_form"):
-        input_username = st.text_input("Username")
-        input_password = st.text_input("Password", type="password")
-        submit_btn = st.form_submit_button("Login")
-        
-        if submit_btn:
-            if input_username in users_database and users_database[input_username]["password"] == input_password:
-                st.session_state.logged_in = True
-                st.session_state.current_user = input_username
-                st.rerun()
-            else:
-                st.error("Invalid Username or Password! Please try again.")
+    st.title("🎓 Welcome to StudyGenius Portal")
+    
+    # Simple Segmented Control for Action Choice
+    auth_action = st.radio("Choose Action:", ["Login to Existing Account", "Create New Account (Sign Up)"], horizontal=True)
+    
+    users_db = load_users()
+
+    if auth_action == "Create New Account (Sign Up)":
+        st.subheader("✨ Register New Student Account")
+        with st.form("signup_form"):
+            new_name = st.text_input("Full Name")
+            new_email = st.text_input("Email Address")
+            new_username = st.text_input("Choose Username (Lowercase only)").lower().strip()
+            new_password = st.text_input("Set Password", type="password")
+            signup_submit = st.form_submit_button("Sign Up & Register")
+            
+            if signup_submit:
+                if not new_username or not new_password or not new_name or not new_email:
+                    st.error("All fields are required!")
+                elif new_username in users_db:
+                    st.error("Username already taken! Try another one.")
+                else:
+                    save_user(new_username, new_password, new_name, new_email)
+                    st.success("Account created successfully! Shift to 'Login to Existing Account' above.")
+                    
+    elif auth_action == "Login to Existing Account":
+        st.subheader("🔐 Student Login Gate")
+        with st.form("login_form"):
+            input_username = st.text_input("Username").lower().strip()
+            input_password = st.text_input("Password", type="password")
+            login_submit = st.form_submit_button("Login")
+            
+            if login_submit:
+                if input_username in users_db and users_db[input_username]["password"] == input_password:
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = input_username
+                    st.rerun()
+                else:
+                    st.error("Invalid Username or Password! Double check spelling.")
+
+# =========================================================================
+# 🚀 MAIN APPLICATION DASHBOARD (Accessed only after valid login)
+# =========================================================================
 else:
-    # Fetch Logged-In User Details securely
+    users_db = load_users()
     username = st.session_state.current_user
-    name = users_database[username]["name"]
-    user_email = users_database[username]["email"]
+    name = users_db[username]["name"]
+    user_email = users_db[username]["email"]
 
     user_chat_key = f"chat_history_{username}"
     if user_chat_key not in st.session_state:
