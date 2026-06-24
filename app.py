@@ -8,6 +8,7 @@ from gtts import gTTS
 import io
 import json
 import os
+import random
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
@@ -24,18 +25,15 @@ else:
 DB_FILE = "users_db.json"
 
 def load_users():
-    # Tumhari unique details ko permanently base record bana diya hai
     default_records = {
         "kushagra joshi": {"password": "Amidhi#11", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
         "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
         "student2": {"password": "456", "name": "Classmate", "email": "friend@example.com"}
     }
-    
     if os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "r") as f:
                 saved_data = json.load(f)
-                # Ensure permanent records are always present
                 for k, v in default_records.items():
                     if k not in saved_data:
                         saved_data[k] = v
@@ -50,22 +48,42 @@ def save_user(username, password, name, email):
     with open(DB_FILE, "w") as f:
         json.dump(users, f, indent=4)
 
-# Initialize global authentication states
+# Initialize global authentication and session states
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.current_user = None
+    st.session_state.is_guest = False
+
+# Reset state verification helpers
+if "reset_step" not in st.session_state:
+    st.session_state.reset_step = 1
+    st.session_state.generated_code = None
+    st.session_state.target_username = None
 
 # =========================================================================
-# 🔐 GATEWAY SYSTEM: SIGN UP & LOGIN TOGGLE
+# 🔐 GATEWAY SYSTEM: SIGN UP, LOGIN, GUEST & FORGOT PASSWORD
 # =========================================================================
-if not st.session_state.logged_in:
+if not st.session_state.logged_in and not st.session_state.is_guest:
     st.title("🎓 Welcome to StudyGenius Portal")
     
-    auth_action = st.radio("Choose Action:", ["Login to Existing Account", "Create New Account (Sign Up)"], horizontal=True)
+    # 4-way selector adding Forgot Password functionality
+    auth_action = st.radio(
+        "Select Access Type:", 
+        ["Login to Existing Account", "Create New Account (Sign Up)", "Continue as Guest 👤", "Forgot Password 🔑"], 
+        horizontal=True
+    )
     
     users_db = load_users()
 
-    if auth_action == "Create New Account (Sign Up)":
+    if auth_action == "Continue as Guest 👤":
+        st.subheader("👤 Guest Sandbox Access")
+        st.info("You can use the AI freely in Guest mode, but history won't be saved permanently.")
+        if st.button("Enter AI Dashboard as Guest 🚀"):
+            st.session_state.is_guest = True
+            st.session_state.current_user = "guest_user"
+            st.rerun()
+
+    elif auth_action == "Create New Account (Sign Up)":
         st.subheader("✨ Register New Student Account")
         with st.form("signup_form"):
             new_name = st.text_input("Full Name")
@@ -93,21 +111,67 @@ if not st.session_state.logged_in:
             if login_submit:
                 if input_username in users_db and users_db[input_username]["password"] == input_password:
                     st.session_state.logged_in = True
+                    st.session_state.is_guest = False
                     st.session_state.current_user = input_username
                     st.rerun()
                 else:
                     st.error("Invalid Username or Password! Double check spelling.")
 
+    elif auth_action == "Forgot Password 🔑":
+        st.subheader("🔑 Secure Password Recovery Engine")
+        
+        if st.session_state.reset_step == 1:
+            with st.form("verify_user_form"):
+                forget_user = st.text_input("Enter Username").lower().strip()
+                forget_email = st.text_input("Enter Registered Email")
+                submit_verification = st.form_submit_button("Generate Dynamic Security Code")
+                
+                if submit_verification:
+                    if forget_user in users_db and users_db[forget_user]["email"] == forget_email:
+                        # Generate random 6 digit verification code on screen
+                        secure_code = str(random.randint(100000, 999999))
+                        st.session_state.generated_code = secure_code
+                        st.session_state.target_username = forget_user
+                        st.session_state.reset_step = 2
+                        st.rerun()
+                    else:
+                        st.error("Match failed! Username and email do not sync in database.")
+                        
+        if st.session_state.reset_step == 2:
+            st.warning(f"🔒 AUTHORIZATION CODE GENERATED: `{st.session_state.generated_code}`")
+            with st.form("code_and_reset_form"):
+                entered_code = st.text_input("Enter the Authorization Code shown above").strip()
+                new_pass_input = st.text_input("Set New Password", type="password")
+                submit_final_reset = st.form_submit_button("Overwrite Password & Update System")
+                
+                if submit_final_reset:
+                    if entered_code == st.session_state.generated_code:
+                        tgt = st.session_state.target_username
+                        save_user(tgt, new_pass_input, users_db[tgt]["name"], users_db[tgt]["email"])
+                        st.success("Password verified and updated successfully! Switch to 'Login to Existing Account'.")
+                        # Reset tracking state
+                        st.session_state.reset_step = 1
+                        st.session_state.generated_code = None
+                        st.session_state.target_username = None
+                    else:
+                        st.error("Invalid dynamic code! Verification aborted.")
+
 # =========================================================================
-# 🚀 MAIN APPLICATION DASHBOARD (Accessed only after valid login)
+# 🚀 MAIN APPLICATION DASHBOARD (Accessed via valid Auth or Guest)
 # =========================================================================
 else:
-    users_db = load_users()
-    username = st.session_state.current_user
-    name = users_db[username]["name"]
-    user_email = users_db[username]["email"]
+    if st.session_state.is_guest:
+        username = "guest"
+        name = "Guest Student"
+        user_email = "None (Guest Session)"
+        user_chat_key = "chat_history_guest"
+    else:
+        users_db = load_users()
+        username = st.session_state.current_user
+        name = users_db[username]["name"]
+        user_email = users_db[username]["email"]
+        user_chat_key = f"chat_history_{username}"
 
-    user_chat_key = f"chat_history_{username}"
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
 
@@ -174,7 +238,7 @@ else:
         processed_image_payload = Image.open(uploaded_visual_file)
         st.sidebar.image(processed_image_payload, caption="⚡ Image Processed", use_container_width=True)
 
-    # VOICE ASSISTANT CONTROL CENTER
+    # VOICE ASSISTANT MIC CAPTURE
     st.sidebar.markdown("---")
     st.sidebar.subheader("🎙️ Voice Assistant Mode")
     
@@ -191,8 +255,9 @@ else:
         st.session_state[user_chat_key] = []
         st.rerun()
 
-    if st.sidebar.button("🚪 Logout"):
+    if st.sidebar.button("🚪 Logout / Exit Portal"):
         st.session_state.logged_in = False
+        st.session_state.is_guest = False
         st.session_state.current_user = None
         st.rerun()
 
@@ -258,13 +323,18 @@ else:
                 rendered_final_response = st.write_stream(text_stream_unroller())
                 st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": rendered_final_response})
                 
-                with st.spinner("🔊 Tuning Voice Response..."):
-                    clean_speech_text = rendered_final_response.replace("**", "").replace("*", "").replace("`", "")
-                    tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
-                    audio_buffer = io.BytesIO()
-                    tts_object.write_to_fp(audio_buffer)
-                    audio_buffer.seek(0)
-                    st.audio(audio_buffer, format="audio/mp3", autoplay=True)
+                # CHOICE OPERATED VOICE WORKFLOW
+                st.markdown("---")
+                play_voice_response = st.checkbox("🔊 Play Voice Response for this answer", key=f"voice_choice_{len(st.session_state[user_chat_key])}")
+                
+                if play_voice_response:
+                    with st.spinner("🔊 Tuning Voice Response..."):
+                        clean_speech_text = rendered_final_response.replace("**", "").replace("*", "").replace("`", "")
+                        tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
+                        audio_buffer = io.BytesIO()
+                        tts_object.write_to_fp(audio_buffer)
+                        audio_buffer.seek(0)
+                        st.audio(audio_buffer, format="audio/mp3", autoplay=True)
                 
             except Exception as runtime_error:
                 st.error(f"Error handling query pipeline: {runtime_error}")
