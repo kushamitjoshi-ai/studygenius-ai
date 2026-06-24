@@ -2,10 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from PIL import Image
-import streamlit.components.v1 as components
-from streamlit_mic_recorder import speech_to_text
-from gtts import gTTS
-import io
 import json
 import os
 import random
@@ -178,7 +174,7 @@ if st.session_state.logged_in or st.session_state.is_guest:
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
 
-    # SIDEBAR CONFIGURATION
+    # SIDEBAR CONFIGURATION (Cleaned up audio modules)
     st.sidebar.title(f"👋 Welcome, {name}!")
     st.sidebar.caption(f"Connected Email: {user_email}")
     
@@ -215,17 +211,6 @@ if st.session_state.logged_in or st.session_state.is_guest:
         st.sidebar.image(processed_image_payload, caption="⚡ Image Processed", use_container_width=True)
 
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🎙️ Voice Assistant Mode")
-    
-    voice_text_input = speech_to_text(
-        start_prompt="🎤 Start Listening",
-        stop_prompt="🛑 Stop Recording",
-        language='en',
-        use_container_width=True,
-        key='speech'
-    )
-
-    st.sidebar.markdown("---")
     if st.sidebar.button("🗑️ Clear My Chat History"):
         st.session_state[user_chat_key] = []
         st.rerun()
@@ -240,7 +225,7 @@ if st.session_state.logged_in or st.session_state.is_guest:
     st.title("🚀 StudyGenius Multi-User AI")
     st.caption(f"User Active: **{name}** | Focus: **{domain_focus}**")
 
-    # Render Historical Logs
+    # Render Historical Logs Safely
     for chat_node in st.session_state[user_chat_key]:
         with st.chat_message(chat_node["role"]):
             if chat_node["type"] == "text":
@@ -248,13 +233,11 @@ if st.session_state.logged_in or st.session_state.is_guest:
             elif chat_node["type"] == "image":
                 st.image(chat_node["content"], caption="Injected Structural Reference")
 
-    # CHAT INPUT GATEWAY
+    # CLEAN CHAT INPUT GATEWAY (No Voice Hooks to freeze or interrupt state)
     current_user_query = st.chat_input("Ask StudyGenius anything...")
-    if voice_text_input:
-        current_user_query = voice_text_input
 
     if current_user_query:
-        # Append User Input right away to avoid screen freezing appearance
+        # Instantly append to history logs to make the UI ultra-responsive
         st.session_state[user_chat_key].append({"role": "user", "type": "text", "content": current_user_query})
         with st.chat_message("user"):
             st.markdown(current_user_query)
@@ -277,25 +260,13 @@ if st.session_state.logged_in or st.session_state.is_guest:
                 
                 with st.spinner("Brainstorming response..."):
                     response = ai_model_instance.generate_content(execution_payload_package)
-                    rendered_final_response = st.write(response.text)
+                    st.markdown(response.text)
                     
                 st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": response.text})
-                
-                st.markdown("---")
-                play_voice_response = st.checkbox("🔊 Play Voice Response for this answer", key=f"voice_choice_{len(st.session_state[user_chat_key])}")
-                
-                if play_voice_response:
-                    with st.spinner("🔊 Tuning Voice Response..."):
-                        clean_speech_text = response.text.replace("**", "").replace("*", "").replace("`", "")
-                        tts_object = gTTS(text=clean_speech_text, lang='en', slow=False)
-                        audio_buffer = io.BytesIO()
-                        tts_object.write_to_fp(audio_buffer)
-                        audio_buffer.seek(0)
-                        st.audio(audio_buffer, format="audio/mp3", autoplay=True)
                         
             except Exception as runtime_error:
                 error_msg = str(runtime_error)
                 if "429" in error_msg or "quota" in error_msg.lower():
-                    st.error("⚠️ **API Quota Exceeded!** Your daily free limit of 20 requests has run out. Please wait for it to reset or swap your API Key in Streamlit Secrets! 🛑")
+                    st.error("⚠️ **API Quota Exceeded!** Your daily free limit has run out. Please wait for it to reset or swap your API Key in Streamlit Secrets! 🛑")
                 else:
                     st.error(f"Error handling query pipeline: {runtime_error}")
