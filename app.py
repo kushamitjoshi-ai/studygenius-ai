@@ -13,6 +13,22 @@ import random
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="StudyGenius AI", page_icon="🎓", layout="wide")
 
+# =========================================================================
+# ⚙️ INITIALIZE ALL SESSION STATES FIRST (Crash Prevention)
+# =========================================================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+if "is_guest" not in st.session_state:
+    st.session_state.is_guest = False
+if "reset_step" not in st.session_state:
+    st.session_state.reset_step = 1
+if "generated_code" not in st.session_state:
+    st.session_state.generated_code = None
+if "target_username" not in st.session_state:
+    st.session_state.target_username = None
+
 # API Key Secrets Pull
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -48,25 +64,12 @@ def save_user(username, password, name, email):
     with open(DB_FILE, "w") as f:
         json.dump(users, f, indent=4)
 
-# Initialize global authentication and session states
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.current_user = None
-    st.session_state.is_guest = False
-
-# Reset state verification helpers
-if "reset_step" not in st.session_state:
-    st.session_state.reset_step = 1
-    st.session_state.generated_code = None
-    st.session_state.target_username = None
-
 # =========================================================================
 # 🔐 GATEWAY SYSTEM: SIGN UP, LOGIN, GUEST & FORGOT PASSWORD
 # =========================================================================
 if not st.session_state.logged_in and not st.session_state.is_guest:
     st.title("🎓 Welcome to StudyGenius Portal")
     
-    # 4-way selector adding Forgot Password functionality
     auth_action = st.radio(
         "Select Access Type:", 
         ["Login to Existing Account", "Create New Account (Sign Up)", "Continue as Guest 👤", "Forgot Password 🔑"], 
@@ -80,6 +83,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
         st.info("You can use the AI freely in Guest mode, but history won't be saved permanently.")
         if st.button("Enter AI Dashboard as Guest 🚀"):
             st.session_state.is_guest = True
+            st.session_state.logged_in = False
             st.session_state.current_user = "guest_user"
             st.rerun()
 
@@ -128,7 +132,6 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 
                 if submit_verification:
                     if forget_user in users_db and users_db[forget_user]["email"] == forget_email:
-                        # Generate random 6 digit verification code on screen
                         secure_code = str(random.randint(100000, 999999))
                         st.session_state.generated_code = secure_code
                         st.session_state.target_username = forget_user
@@ -149,17 +152,17 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                         tgt = st.session_state.target_username
                         save_user(tgt, new_pass_input, users_db[tgt]["name"], users_db[tgt]["email"])
                         st.success("Password verified and updated successfully! Switch to 'Login to Existing Account'.")
-                        # Reset tracking state
                         st.session_state.reset_step = 1
                         st.session_state.generated_code = None
                         st.session_state.target_username = None
+                        st.rerun()
                     else:
                         st.error("Invalid dynamic code! Verification aborted.")
 
 # =========================================================================
 # 🚀 MAIN APPLICATION DASHBOARD (Accessed via valid Auth or Guest)
 # =========================================================================
-else:
+if st.session_state.logged_in or st.session_state.is_guest:
     if st.session_state.is_guest:
         username = "guest"
         name = "Guest Student"
@@ -175,7 +178,7 @@ else:
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
 
-    # Global Ctrl+V Trigger for Clipboard Images
+    # Global Clipboard Image Injection script
     components.html(
         """
         <script>
@@ -209,7 +212,6 @@ else:
         ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
     )
 
-    # GENZ DYNAMIC ENERGY PANEL
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔥 Select Your AI Energy")
     selected_model_display = st.sidebar.selectbox(
@@ -228,7 +230,6 @@ else:
     else:
         chosen_model_id = "gemini-2.5-flash"
 
-    # MULTIMODAL CAPTURE PANEL
     st.sidebar.markdown("---")
     st.sidebar.subheader("📸 Visual Query Support")
     uploaded_visual_file = st.sidebar.file_uploader("Upload or Paste image file", type=["png", "jpg", "jpeg"])
@@ -238,7 +239,6 @@ else:
         processed_image_payload = Image.open(uploaded_visual_file)
         st.sidebar.image(processed_image_payload, caption="⚡ Image Processed", use_container_width=True)
 
-    # VOICE ASSISTANT MIC CAPTURE
     st.sidebar.markdown("---")
     st.sidebar.subheader("🎙️ Voice Assistant Mode")
     
@@ -265,7 +265,6 @@ else:
     st.title("🚀 StudyGenius Multi-User AI")
     st.caption(f"User Active: **{name}** | Focus: **{domain_focus}**")
 
-    # RENDER EXCLUSIVE HISTORY
     for chat_node in st.session_state[user_chat_key]:
         with st.chat_message(chat_node["role"]):
             if chat_node["type"] == "text":
@@ -323,7 +322,6 @@ else:
                 rendered_final_response = st.write_stream(text_stream_unroller())
                 st.session_state[user_chat_key].append({"role": "assistant", "type": "text", "content": rendered_final_response})
                 
-                # CHOICE OPERATED VOICE WORKFLOW
                 st.markdown("---")
                 play_voice_response = st.checkbox("🔊 Play Voice Response for this answer", key=f"voice_choice_{len(st.session_state[user_chat_key])}")
                 
