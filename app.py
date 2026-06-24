@@ -3,7 +3,6 @@ import google.generativeai as genai
 import time
 from PIL import Image
 import streamlit.components.v1 as components
-import streamlit_authenticator as stauth
 from streamlit_mic_recorder import speech_to_text
 from gtts import gTTS
 import io
@@ -18,45 +17,37 @@ else:
     st.error("API Key missing! Please configure GEMINI_API_KEY in Streamlit Secrets.")
 
 # =========================================================================
-# 🔐 MULTI-USER CONFIGURATION
+# 🔐 CLEAN MULTI-USER LOGIN PORTAL (Error-Free Structure)
 # =========================================================================
-config = {
-    "credentials": {
-        "usernames": {
-            "kushagra": {
-                "email": "kushagra@example.com",
-                "name": "Kushagra Joshi",
-                "password": "123"
-            },
-            "student2": {
-                "email": "friend@example.com",
-                "name": "Classmate",
-                "password": "456"
-            }
-        }
-    },
-    "cookie": {
-        "expiry_days": 30,
-        "key": "signature_cookie_key",
-        "name": "auth_cookie"
-    }
+users_database = {
+    "kushagra": {"password": "123", "name": "Kushagra Joshi", "email": "kushagra@example.com"},
+    "student2": {"password": "456", "name": "Classmate", "email": "friend@example.com"}
 }
 
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
-)
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.current_user = None
 
-name, authentication_status, username = authenticator.login('main')
+if not st.session_state.logged_in:
+    st.title("🔐 StudyGenius Portal")
+    with st.form("login_form"):
+        input_username = st.text_input("Username")
+        input_password = st.text_input("Password", type="password")
+        submit_btn = st.form_submit_button("Login")
+        
+        if submit_btn:
+            if input_username in users_database and users_database[input_username]["password"] == input_password:
+                st.session_state.logged_in = True
+                st.session_state.current_user = input_username
+                st.rerun()
+            else:
+                st.error("Invalid Username or Password! Please try again.")
+else:
+    # Fetch Logged-In User Details securely
+    username = st.session_state.current_user
+    name = users_database[username]["name"]
+    user_email = users_database[username]["email"]
 
-if authentication_status == False:
-    st.error('Username/password is incorrect')
-elif authentication_status == None:
-    st.warning('Please enter your username and password')
-elif authentication_status:
-    
     user_chat_key = f"chat_history_{username}"
     if user_chat_key not in st.session_state:
         st.session_state[user_chat_key] = []
@@ -88,14 +79,14 @@ elif authentication_status:
 
     # 2. SIDEBAR CONFIGURATION
     st.sidebar.title(f"👋 Welcome, {name}!")
-    st.sidebar.caption(f"Connected Email: {config['credentials']['usernames'][username]['email']}")
+    st.sidebar.caption(f"Connected Email: {user_email}")
     
     domain_focus = st.sidebar.selectbox(
         "Select Educational Focus:",
         ["General Education", "Class 11 Science", "Class 12 Science", "Competitive Exams (JEE/NEET)", "Other"]
     )
 
-    # 🌟 NEW NO-CRINGE EXCLUSIVE 3.5 & 3.1 ENERGY SWITCHER PANEL
+    # 🔥 GENZ DYNAMIC ENERGY PANEL
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔥 Select Your AI Energy")
     selected_model_display = st.sidebar.selectbox(
@@ -107,9 +98,8 @@ elif authentication_status:
         ]
     )
 
-    # Backend Stealth Mapping according to API architecture
     if "Low Battery" in selected_model_display:
-        chosen_model_id = "gemini-2.5-flash-lite" # Auto fallback for high-speed free tier channels
+        chosen_model_id = "gemini-2.5-flash-lite"
     elif "Final Boss" in selected_model_display:
         chosen_model_id = "gemini-2.5-pro"
     else:
@@ -142,13 +132,17 @@ elif authentication_status:
         st.session_state[user_chat_key] = []
         st.rerun()
 
-    authenticator.logout('Logout', 'sidebar')
+    # Clean custom logout mechanism
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.session_state.current_user = None
+        st.rerun()
 
     # APPLICATION MAIN STREAM
     st.title("🚀 StudyGenius Multi-User AI")
     st.caption(f"User Active: **{name}** | Focus: **{domain_focus}**")
 
-    # 5. RENDER EXCLUSIVE HISTORY
+    # RENDER EXCLUSIVE HISTORY
     for chat_node in st.session_state[user_chat_key]:
         with st.chat_message(chat_node["role"]):
             if chat_node["type"] == "text":
